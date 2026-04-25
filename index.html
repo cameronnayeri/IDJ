@@ -27,18 +27,18 @@
   }
 
   [data-theme="dark"] {
-    --fairway-dark: #0d2415;
-    --fairway: #173a22;
+    --fairway-dark: #6db585;
+    --fairway: #4a8d62;
     --fairway-light: #2a5a38;
-    --rough: #4a6b2d;
+    --rough: #8aaf5d;
     --cream: #1c2620;
     --cream-dark: #131a16;
     --parchment: #0f1611;
     --ink: #e8dfc8;
-    --ink-soft: #a8a89a;
-    --flag-red: #d44a3a;
+    --ink-soft: #b8b8a8;
+    --flag-red: #e87060;
     --flag-red-dark: #a02a1d;
-    --gold: #d4b56e;
+    --gold: #e0c075;
     --shadow: rgba(0, 0, 0, 0.4);
     --tile-a: #0a1a0f;
     --tile-b: #050d08;
@@ -451,7 +451,7 @@
 const SUPABASE_URL = 'https://iuuxpvpvhtjyxwbhstqn.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_a12BNX7HSkNEw07UrFuygg_sH0JZdRR';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const ROLES = ['top', 'jungle', 'mid', 'bot', 'support'];
 const RANDOM_NAMES = ['Faker', 'Caps', 'Doublelift', 'Bjergsen', 'Sneaky',
@@ -480,13 +480,13 @@ async function joinRoom() {
   if (!code) { alert('Enter a room code'); return; }
   setStatus('Joining...', 'syncing');
 
-  let { data: group, error } = await supabase
+  let { data: group, error } = await sb
     .from('groups').select('*').eq('code', code).maybeSingle();
 
   if (error) { setStatus('Error: ' + error.message, 'error'); return; }
 
   if (!group) {
-    const { data: newGroup, error: insertError } = await supabase
+    const { data: newGroup, error: insertError } = await sb
       .from('groups').insert({ code }).select().single();
     if (insertError) { setStatus('Error creating room: ' + insertError.message, 'error'); return; }
     group = newGroup;
@@ -518,7 +518,7 @@ function leaveRoom() {
 async function refreshFromDb() {
   if (!currentGroup) return;
   setStatus('Loading...', 'syncing');
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from('players').select('*').eq('group_id', currentGroup.id).order('created_at');
   if (error) { setStatus('Error: ' + error.message, 'error'); return; }
   players = data;
@@ -540,7 +540,7 @@ async function addPlayer(name = null) {
   if (!playerName) return;
 
   setStatus('Adding...', 'syncing');
-  const { data, error } = await supabase
+  const { data, error } = await sb
     .from('players')
     .insert({ group_id: currentGroup.id, name: playerName, happiness_debt: 0 })
     .select().single();
@@ -572,7 +572,7 @@ async function addRandomPlayer() {
 async function removePlayer(id) {
   if (!confirm('Remove this player from the room?')) return;
   setStatus('Removing...', 'syncing');
-  const { error } = await supabase.from('players').delete().eq('id', id);
+  const { error } = await sb.from('players').delete().eq('id', id);
   if (error) { setStatus('Error: ' + error.message, 'error'); return; }
   players = players.filter(p => p.id !== id);
   delete localPrefs[id];
@@ -582,7 +582,7 @@ async function removePlayer(id) {
 }
 
 async function setName(id, name) {
-  const { error } = await supabase.from('players').update({ name }).eq('id', id);
+  const { error } = await sb.from('players').update({ name }).eq('id', id);
   if (error) { alert('Error: ' + error.message); return; }
   const p = players.find(x => x.id === id);
   if (p) p.name = name;
@@ -623,7 +623,7 @@ function toggleDuoOnly(id, role) {
 async function resetDebt() {
   if (!confirm('Reset happiness debt for all players in this room?')) return;
   setStatus('Resetting...', 'syncing');
-  const { error } = await supabase
+  const { error } = await sb
     .from('players').update({ happiness_debt: 0 }).eq('group_id', currentGroup.id);
   if (error) { setStatus('Error: ' + error.message, 'error'); return; }
   players.forEach(p => p.happiness_debt = 0);
@@ -746,13 +746,13 @@ async function assignRoles() {
   for (const [playerId, score] of Object.entries(best.perPlayerScores)) {
     const player = players.find(p => p.id === playerId);
     const newDebt = player.happiness_debt + score;
-    const { error } = await supabase
+    const { error } = await sb
       .from('players').update({ happiness_debt: newDebt }).eq('id', playerId);
     if (error) { setStatus('Error: ' + error.message, 'error'); return; }
     player.happiness_debt = newDebt;
   }
 
-  await supabase.from('sessions').insert({
+  await sb.from('sessions').insert({
     group_id: currentGroup.id,
     assignment: best.assignment.map(a => ({
       player: a.player.name,

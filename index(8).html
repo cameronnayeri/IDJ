@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>I Don't Jungle</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;900&family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+
+  :root {
+    --fairway-dark: #1f4d2c;
+    --fairway: #2d6a3e;
+    --fairway-light: #3d8a52;
+    --rough: #6b8e3d;
+    --cream: #f5f0e1;
+    --cream-dark: #e8dfc8;
+    --parchment: #faf6ea;
+    --ink: #1a2818;
+    --ink-soft: #3a4a35;
+    --flag-red: #c0392b;
+    --flag-red-dark: #8b2418;
+    --gold: #c9a961;
+    --shadow: rgba(20, 30, 15, 0.15);
+    --tile-a: var(--fairway);
+    --tile-b: var(--fairway-dark);
+  }
+
+  [data-theme="dark"] {
+    --fairway-dark: #0d2415;
+    --fairway: #173a22;
+    --fairway-light: #2a5a38;
+    --rough: #4a6b2d;
+    --cream: #1c2620;
+    --cream-dark: #131a16;
+    --parchment: #0f1611;
+    --ink: #e8dfc8;
+    --ink-soft: #a8a89a;
+    --flag-red: #d44a3a;
+    --flag-red-dark: #a02a1d;
+    --gold: #d4b56e;
+    --shadow: rgba(0, 0, 0, 0.4);
+    --tile-a: #0a1a0f;
+    --tile-b: #050d08;
+  }
+
+  body {
+    font-family: 'Inconsolata', monospace;
+    color: var(--ink);
+    margin: 0;
+    padding: 0;
+    min-height: 100vh;
+    background-color: var(--tile-a);
+    background-image:
+      linear-gradient(45deg, var(--tile-b) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--tile-b) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--tile-b) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--tile-b) 75%);
+    background-size: 60px 60px;
+    background-position: 0 0, 0 30px, 30px -30px, -30px 0;
+    transition: background-color 0.3s;
+  }
+
+  .page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    background: var(--parchment);
+    min-height: 100vh;
+    box-shadow: 0 0 60px rgba(0,0,0,0.3);
+  }
+
+  .header {
+    text-align: center;
+    padding: 30px 20px 25px;
+    border: 3px double var(--fairway-dark);
+    background: var(--cream);
+    margin-bottom: 25px;
+    position: relative;
+  }
+  .header::before, .header::after {
+    content: '⛳';
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 28px;
+  }
+  .header::before { left: 25px; }
+  .header::after { right: 25px; }
+  h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 900;
+    font-size: 42px;
+    color: var(--fairway-dark);
+    margin: 0;
+    letter-spacing: 1px;
+    font-style: italic;
+  }
+  .tagline {
+    font-family: 'Inconsolata', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    margin-top: 8px;
+  }
+
+  h2 {
+    font-family: 'Playfair Display', serif;
+    color: var(--fairway-dark);
+    margin-top: 30px;
+    border-bottom: 2px solid var(--fairway);
+    padding-bottom: 6px;
+  }
+  h3 { color: var(--fairway-dark); margin-bottom: 8px; }
+
+  .controls {
+    background: var(--cream);
+    padding: 15px;
+    border: 1px solid var(--fairway);
+    border-left: 4px solid var(--fairway-dark);
+    margin-bottom: 20px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  input[type=text] {
+    background: var(--parchment);
+    color: var(--ink);
+    border: 1px solid var(--fairway);
+    padding: 8px;
+    font-family: inherit;
+    font-size: 14px;
+  }
+  input[type=text]:focus {
+    outline: none;
+    border-color: var(--fairway-dark);
+    box-shadow: 0 0 0 2px var(--cream-dark);
+  }
+
+  button {
+    background: var(--cream);
+    color: var(--fairway-dark);
+    border: 1px solid var(--fairway);
+    padding: 8px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    transition: all 0.15s;
+  }
+  button:hover {
+    background: var(--fairway);
+    color: var(--cream);
+    border-color: var(--fairway-dark);
+  }
+  button.primary {
+    background: var(--fairway-dark);
+    color: var(--cream);
+    border-color: var(--ink);
+  }
+  button.primary:hover {
+    background: var(--ink);
+    color: var(--cream);
+  }
+  button.danger {
+    color: var(--flag-red);
+    border-color: var(--flag-red);
+  }
+  button.danger:hover {
+    background: var(--flag-red);
+    color: var(--cream);
+  }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .room-info {
+    color: var(--fairway-dark);
+    font-weight: bold;
+    margin-left: auto;
+    font-family: 'Playfair Display', serif;
+  }
+
+  .players {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+  }
+  .player-card {
+    background: var(--cream);
+    border: 1px solid var(--fairway);
+    border-top: 4px solid var(--fairway-dark);
+    padding: 15px;
+    box-shadow: 2px 2px 0 var(--shadow);
+  }
+  .player-card h3 {
+    margin: 0 0 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-family: 'Playfair Display', serif;
+  }
+  .player-name {
+    background: transparent;
+    border: none;
+    border-bottom: 1px dotted var(--fairway);
+    color: var(--fairway-dark);
+    font-family: 'Playfair Display', serif;
+    font-size: 18px;
+    font-weight: 700;
+    width: 70%;
+    padding: 2px 0;
+  }
+  .role-row {
+    display: flex;
+    align-items: center;
+    margin: 4px 0;
+    gap: 6px;
+  }
+  .role-label {
+    width: 70px;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-soft);
+  }
+  .pref-btn {
+    flex: 1;
+    padding: 4px 6px;
+    font-size: 11px;
+    opacity: 0.5;
+    background: var(--parchment);
+    border: 1px solid var(--ink-soft);
+    color: var(--ink-soft);
+  }
+  .pref-btn:hover { opacity: 0.85; }
+  .pref-btn.selected { opacity: 1; }
+  .pref-btn.happy.selected {
+    background: var(--fairway);
+    border-color: var(--fairway-dark);
+    color: var(--cream);
+  }
+  .pref-btn.fine.selected {
+    background: var(--cream-dark);
+    border-color: var(--ink-soft);
+    color: var(--ink);
+  }
+  .pref-btn.avoid.selected {
+    background: var(--flag-red);
+    border-color: var(--flag-red-dark);
+    color: var(--cream);
+  }
+  .pref-btn.duo.selected {
+    background: var(--gold);
+    border-color: var(--ink);
+    color: var(--ink);
+  }
+  .duo-only { visibility: hidden; }
+  .role-row.botsupport .duo-only { visibility: visible; }
+
+  .results {
+    background: var(--cream);
+    border: 3px double var(--fairway-dark);
+    padding: 25px;
+    margin-top: 20px;
+    position: relative;
+  }
+  .results h2 {
+    margin-top: 0;
+    text-align: center;
+    border-bottom: none;
+  }
+  .assignment {
+    display: grid;
+    grid-template-columns: 100px 1fr 120px;
+    gap: 15px;
+    padding: 10px 8px;
+    border-bottom: 1px dotted var(--fairway);
+    align-items: center;
+  }
+  .assignment:last-child { border-bottom: none; }
+  .assignment .role {
+    color: var(--fairway-dark);
+    font-weight: bold;
+    font-family: 'Playfair Display', serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .assignment .player {
+    color: var(--ink);
+    font-size: 18px;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+  }
+  .assignment .happiness {
+    text-align: right;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .happiness.happy { color: var(--fairway-dark); font-weight: 700; }
+  .happiness.fine { color: var(--ink-soft); }
+  .happiness.avoid { color: var(--flag-red); font-weight: 700; }
+
+  .debt-table {
+    margin-top: 15px;
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--cream);
+    border: 1px solid var(--fairway);
+  }
+  .debt-table th, .debt-table td {
+    padding: 8px 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--cream-dark);
+  }
+  .debt-table th {
+    color: var(--cream);
+    background: var(--fairway-dark);
+    font-family: 'Playfair Display', serif;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 12px;
+  }
+  .debt-table tr:last-child td { border-bottom: none; }
+
+  .log {
+    font-size: 12px;
+    color: var(--ink-soft);
+    max-height: 200px;
+    overflow-y: auto;
+    margin-top: 10px;
+    padding: 10px;
+    background: var(--cream);
+    border: 1px solid var(--fairway);
+    font-family: 'Inconsolata', monospace;
+  }
+
+  .lobby {
+    text-align: center;
+    padding: 60px 20px;
+    background: var(--cream);
+    border: 3px double var(--fairway-dark);
+    margin: 40px auto;
+    max-width: 500px;
+  }
+  .lobby h2 {
+    border: none;
+    margin-bottom: 10px;
+  }
+  .lobby p {
+    color: var(--ink-soft);
+    margin-bottom: 25px;
+  }
+  .lobby input {
+    font-size: 22px;
+    padding: 14px;
+    text-align: center;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    font-family: 'Playfair Display', serif;
+    font-weight: 700;
+    color: var(--fairway-dark);
+  }
+  .lobby button {
+    font-size: 15px;
+    padding: 12px 28px;
+    margin-top: 20px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .hidden { display: none; }
+
+  .status {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-left: 10px;
+    font-style: italic;
+  }
+  .status.syncing { color: var(--gold); }
+  .status.error { color: var(--flag-red); }
+
+  .theme-toggle {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: transparent;
+    border: 1px solid var(--fairway-dark);
+    color: var(--fairway-dark);
+    padding: 6px 10px;
+    font-size: 16px;
+    cursor: pointer;
+    z-index: 10;
+  }
+  .theme-toggle:hover {
+    background: var(--fairway-dark);
+    color: var(--cream);
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+<div class="header">
+  <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle dark mode">🌙</button>
+  <h1>I Don't Jungle</h1>
+  <div class="tagline">Tee Times · Tee Lanes · Fair Play</div>
+</div>
+
+<div id="lobby" class="lobby">
+  <h2>Enter Clubhouse</h2>
+  <p>Pick a room code your group will share.<br>Anyone with the same code joins the same group.</p>
+  <input type="text" id="roomCodeInput" placeholder="WOLVES" maxlength="20">
+  <br>
+  <button class="primary" onclick="joinRoom()">Join Room</button>
+</div>
+
+<div id="app" class="hidden">
+  <div class="controls">
+    <button class="primary" onclick="addPlayer()">+ Add Player</button>
+    <button onclick="addRandomPlayer()">+ Add Random</button>
+    <button onclick="randomizePrefs()">🎲 Randomize Prefs</button>
+    <button class="danger" onclick="leaveRoom()">Leave Room</button>
+    <span class="room-info">Room: <span id="roomCodeDisplay"></span></span>
+    <span id="status" class="status"></span>
+  </div>
+
+  <div class="controls">
+    <button class="primary" onclick="assignRoles()">⛳ ASSIGN ROLES</button>
+    <button onclick="resetDebt()">Reset Happiness Debt</button>
+    <button onclick="refreshFromDb()">🔄 Refresh</button>
+    <span style="margin-left:auto;">Players: <span id="playerCount">0</span>/5</span>
+  </div>
+
+  <div id="players" class="players"></div>
+
+  <div id="results"></div>
+
+  <h2>Happiness Scorecard</h2>
+  <div id="debt"></div>
+
+  <h2>Log</h2>
+  <div id="log" class="log"></div>
+</div>
+
+</div>
+
+<script>
+const SUPABASE_URL = 'https://iuuxpvpvhtjyxwbhstqn.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_a12BNX7HSkNEw07UrFuygg_sH0JZdRR';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const ROLES = ['top', 'jungle', 'mid', 'bot', 'support'];
+const RANDOM_NAMES = ['Faker', 'Caps', 'Doublelift', 'Bjergsen', 'Sneaky',
+  'Uzi', 'Rookie', 'TheShy', 'Perkz', 'Rekkles', 'Jankos', 'Canyon',
+  'ShowMaker', 'Chovy', 'Ruler', 'Deft', 'Keria', 'Gumayusi'];
+const PREF_SCORE = { happy: 3, fine: 1, avoid: -2 };
+
+let currentGroup = null;
+let players = [];
+let localPrefs = {};
+let localDuoOnly = {};
+
+function log(msg) {
+  const el = document.getElementById('log');
+  el.innerHTML = `<div>[${new Date().toLocaleTimeString()}] ${msg}</div>` + el.innerHTML;
+}
+
+function setStatus(msg, type = '') {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = 'status ' + type;
+}
+
+async function joinRoom() {
+  const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+  if (!code) { alert('Enter a room code'); return; }
+  setStatus('Joining...', 'syncing');
+
+  let { data: group, error } = await supabase
+    .from('groups').select('*').eq('code', code).maybeSingle();
+
+  if (error) { setStatus('Error: ' + error.message, 'error'); return; }
+
+  if (!group) {
+    const { data: newGroup, error: insertError } = await supabase
+      .from('groups').insert({ code }).select().single();
+    if (insertError) { setStatus('Error creating room: ' + insertError.message, 'error'); return; }
+    group = newGroup;
+    log(`Created new room: ${code}`);
+  } else {
+    log(`Joined existing room: ${code}`);
+  }
+
+  currentGroup = group;
+  localStorage.setItem('lastRoomCode', code);
+  document.getElementById('roomCodeDisplay').textContent = code;
+  document.getElementById('lobby').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  setStatus('Connected', '');
+  await refreshFromDb();
+}
+
+function leaveRoom() {
+  currentGroup = null;
+  players = [];
+  localPrefs = {};
+  localDuoOnly = {};
+  localStorage.removeItem('lastRoomCode');
+  document.getElementById('lobby').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  document.getElementById('results').innerHTML = '';
+}
+
+async function refreshFromDb() {
+  if (!currentGroup) return;
+  setStatus('Loading...', 'syncing');
+  const { data, error } = await supabase
+    .from('players').select('*').eq('group_id', currentGroup.id).order('created_at');
+  if (error) { setStatus('Error: ' + error.message, 'error'); return; }
+  players = data;
+  players.forEach(p => {
+    if (!localPrefs[p.id]) {
+      localPrefs[p.id] = { top: 'fine', jungle: 'fine', mid: 'fine', bot: 'fine', support: 'fine' };
+    }
+    if (!localDuoOnly[p.id]) {
+      localDuoOnly[p.id] = { bot: false, support: false };
+    }
+  });
+  setStatus('Connected', '');
+  render();
+}
+
+async function addPlayer(name = null) {
+  if (players.length >= 5) { alert('Max 5 players'); return; }
+  const playerName = name || prompt('Player name?', `Player ${players.length + 1}`);
+  if (!playerName) return;
+
+  setStatus('Adding...', 'syncing');
+  const { data, error } = await supabase
+    .from('players')
+    .insert({ group_id: currentGroup.id, name: playerName, happiness_debt: 0 })
+    .select().single();
+
+  if (error) {
+    setStatus('Error: ' + error.message, 'error');
+    if (error.message.includes('unique')) alert('Name already taken in this room');
+    return;
+  }
+  players.push(data);
+  localPrefs[data.id] = { top: 'fine', jungle: 'fine', mid: 'fine', bot: 'fine', support: 'fine' };
+  localDuoOnly[data.id] = { bot: false, support: false };
+  setStatus('Connected', '');
+  render();
+}
+
+async function addRandomPlayer() {
+  const available = RANDOM_NAMES.filter(n => !players.find(p => p.name === n));
+  if (available.length === 0) { alert('No more random names'); return; }
+  const name = available[Math.floor(Math.random() * available.length)];
+  await addPlayer(name);
+  const newPlayer = players[players.length - 1];
+  if (newPlayer) {
+    randomizePlayerPrefs(newPlayer);
+    render();
+  }
+}
+
+async function removePlayer(id) {
+  if (!confirm('Remove this player from the room?')) return;
+  setStatus('Removing...', 'syncing');
+  const { error } = await supabase.from('players').delete().eq('id', id);
+  if (error) { setStatus('Error: ' + error.message, 'error'); return; }
+  players = players.filter(p => p.id !== id);
+  delete localPrefs[id];
+  delete localDuoOnly[id];
+  setStatus('Connected', '');
+  render();
+}
+
+async function setName(id, name) {
+  const { error } = await supabase.from('players').update({ name }).eq('id', id);
+  if (error) { alert('Error: ' + error.message); return; }
+  const p = players.find(x => x.id === id);
+  if (p) p.name = name;
+}
+
+function randomizePlayerPrefs(player) {
+  const shuffled = [...ROLES].sort(() => Math.random() - 0.5);
+  const happyCount = 1 + Math.floor(Math.random() * 2);
+  const avoidCount = 1 + Math.floor(Math.random() * 2);
+  const prefs = {};
+  shuffled.forEach((role, i) => {
+    if (i < happyCount) prefs[role] = 'happy';
+    else if (i < happyCount + avoidCount) prefs[role] = 'avoid';
+    else prefs[role] = 'fine';
+  });
+  localPrefs[player.id] = prefs;
+  localDuoOnly[player.id] = {
+    bot: prefs.bot !== 'avoid' && Math.random() < 0.4,
+    support: prefs.support !== 'avoid' && Math.random() < 0.5
+  };
+}
+
+function randomizePrefs() {
+  players.forEach(randomizePlayerPrefs);
+  render();
+}
+
+function setPref(id, role, pref) {
+  if (localPrefs[id]) localPrefs[id][role] = pref;
+  render();
+}
+
+function toggleDuoOnly(id, role) {
+  if (localDuoOnly[id]) localDuoOnly[id][role] = !localDuoOnly[id][role];
+  render();
+}
+
+async function resetDebt() {
+  if (!confirm('Reset happiness debt for all players in this room?')) return;
+  setStatus('Resetting...', 'syncing');
+  const { error } = await supabase
+    .from('players').update({ happiness_debt: 0 }).eq('group_id', currentGroup.id);
+  if (error) { setStatus('Error: ' + error.message, 'error'); return; }
+  players.forEach(p => p.happiness_debt = 0);
+  setStatus('Connected', '');
+  log('Happiness debt reset.');
+  render();
+}
+
+function render() {
+  document.getElementById('playerCount').textContent = players.length;
+  const container = document.getElementById('players');
+  container.innerHTML = '';
+  players.forEach(p => {
+    const prefs = localPrefs[p.id] || {};
+    const duoOnly = localDuoOnly[p.id] || {};
+    const card = document.createElement('div');
+    card.className = 'player-card';
+    let html = `<h3>
+      <input class="player-name" value="${p.name}" onchange="setName('${p.id}', this.value)">
+      <button class="danger" onclick="removePlayer('${p.id}')">✕</button>
+    </h3>`;
+    ROLES.forEach(role => {
+      const isDuoLane = (role === 'bot' || role === 'support');
+      html += `<div class="role-row ${isDuoLane ? 'botsupport' : ''}">
+        <span class="role-label">${role}</span>
+        <button class="pref-btn happy ${prefs[role]==='happy'?'selected':''}" onclick="setPref('${p.id}','${role}','happy')">happy</button>
+        <button class="pref-btn fine ${prefs[role]==='fine'?'selected':''}" onclick="setPref('${p.id}','${role}','fine')">fine</button>
+        <button class="pref-btn avoid ${prefs[role]==='avoid'?'selected':''}" onclick="setPref('${p.id}','${role}','avoid')">avoid</button>
+        <button class="pref-btn duo duo-only ${duoOnly[role]?'selected':''}" onclick="toggleDuoOnly('${p.id}','${role}')" title="Only if duo partner is also a party member">duo</button>
+      </div>`;
+    });
+    card.innerHTML = html;
+    container.appendChild(card);
+  });
+  renderDebt();
+}
+
+function renderDebt() {
+  const debtEl = document.getElementById('debt');
+  if (players.length === 0) { debtEl.innerHTML = '<em>(no players yet)</em>'; return; }
+  const sorted = [...players].sort((a, b) => a.happiness_debt - b.happiness_debt);
+  let html = `<table class="debt-table"><tr><th>Player</th><th>Score</th><th>Status</th></tr>`;
+  const avg = players.reduce((s, p) => s + p.happiness_debt, 0) / players.length;
+  sorted.forEach(p => {
+    const status = p.happiness_debt < avg - 1 ? '🚩 owed' : p.happiness_debt > avg + 1 ? '⛳ above par' : '○ even';
+    html += `<tr><td>${p.name}</td><td>${p.happiness_debt.toFixed(1)}</td><td>${status}</td></tr>`;
+  });
+  html += `</table>`;
+  debtEl.innerHTML = html;
+}
+
+function* permutations(arr, k) {
+  if (k === 0) { yield []; return; }
+  for (let i = 0; i < arr.length; i++) {
+    const rest = [...arr.slice(0, i), ...arr.slice(i+1)];
+    for (const perm of permutations(rest, k - 1)) {
+      yield [arr[i], ...perm];
+    }
+  }
+}
+
+function evaluateAssignment(assignment) {
+  const assignedRoles = new Set(assignment.map(a => a.role));
+  const botAssigned = assignedRoles.has('bot');
+  const supportAssigned = assignedRoles.has('support');
+  const perPlayerScores = {};
+  let totalWeightedScore = 0;
+  const debts = players.map(p => p.happiness_debt);
+  const avgDebt = debts.reduce((a,b) => a+b, 0) / debts.length;
+
+  for (const {player, role} of assignment) {
+    const prefs = localPrefs[player.id];
+    const duoOnly = localDuoOnly[player.id];
+    const pref = prefs[role];
+    const baseScore = PREF_SCORE[pref];
+
+    if (role === 'bot' && duoOnly.bot && !supportAssigned) return { valid: false };
+    if (role === 'support' && duoOnly.support && !botAssigned) return { valid: false };
+
+    perPlayerScores[player.id] = baseScore;
+    const debtFactor = 1 + (avgDebt - player.happiness_debt) * 0.3;
+    totalWeightedScore += baseScore * Math.max(0.5, debtFactor);
+  }
+  return { valid: true, score: totalWeightedScore, perPlayerScores };
+}
+
+function findBestAssignment() {
+  if (players.length === 0) return null;
+  let best = null;
+  let bestScore = -Infinity;
+  let validCount = 0, totalCount = 0;
+  for (const rolePerm of permutations(ROLES, players.length)) {
+    totalCount++;
+    const assignment = players.map((player, i) => ({ player, role: rolePerm[i] }));
+    const result = evaluateAssignment(assignment);
+    if (!result.valid) continue;
+    validCount++;
+    if (result.score > bestScore) {
+      bestScore = result.score;
+      best = { assignment, ...result };
+    } else if (result.score === bestScore && Math.random() < 0.5) {
+      best = { assignment, ...result };
+    }
+  }
+  log(`Tried ${totalCount} permutations, ${validCount} valid.`);
+  return best;
+}
+
+async function assignRoles() {
+  if (players.length === 0) { alert('Add players first'); return; }
+  const best = findBestAssignment();
+
+  if (!best) {
+    document.getElementById('results').innerHTML = `<div class="results"><h2>⚠️ No Valid Assignment</h2>
+      <p style="text-align:center;">Likely cause: someone flagged duo-only on bot or support, but the partner role wasn't assigned.</p></div>`;
+    return;
+  }
+
+  setStatus('Saving...', 'syncing');
+  for (const [playerId, score] of Object.entries(best.perPlayerScores)) {
+    const player = players.find(p => p.id === playerId);
+    const newDebt = player.happiness_debt + score;
+    const { error } = await supabase
+      .from('players').update({ happiness_debt: newDebt }).eq('id', playerId);
+    if (error) { setStatus('Error: ' + error.message, 'error'); return; }
+    player.happiness_debt = newDebt;
+  }
+
+  await supabase.from('sessions').insert({
+    group_id: currentGroup.id,
+    assignment: best.assignment.map(a => ({
+      player: a.player.name,
+      role: a.role,
+      pref: localPrefs[a.player.id][a.role]
+    }))
+  });
+
+  setStatus('Connected', '');
+
+  let html = `<div class="results"><h2>⛳ The Lineup</h2>`;
+  for (const {player, role} of best.assignment) {
+    const pref = localPrefs[player.id][role];
+    html += `<div class="assignment">
+      <div class="role">${role}</div>
+      <div class="player">${player.name}</div>
+      <div class="happiness ${pref}">${pref} (${PREF_SCORE[pref] >= 0 ? '+' : ''}${PREF_SCORE[pref]})</div>
+    </div>`;
+  }
+  const filled = new Set(best.assignment.map(a => a.role));
+  const unfilled = ROLES.filter(r => !filled.has(r));
+  if (unfilled.length > 0) {
+    html += `<p style="margin-top:15px;color:var(--ink-soft);text-align:center;font-style:italic;">Unfilled (random fill): ${unfilled.join(', ')}</p>`;
+  }
+  html += `</div>`;
+  document.getElementById('results').innerHTML = html;
+  renderDebt();
+  log(`Assigned roles. Score: ${best.score.toFixed(2)}`);
+}
+
+const lastRoom = localStorage.getItem('lastRoomCode');
+if (lastRoom) {
+  document.getElementById('roomCodeInput').value = lastRoom;
+}
+
+// Theme handling
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  setTheme(next);
+  localStorage.setItem('theme', next);
+}
+
+function setTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    document.getElementById('themeToggle').textContent = '☀️';
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+    document.getElementById('themeToggle').textContent = '🌙';
+  }
+}
+
+// Initialize theme from localStorage or system preference
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme) {
+  setTheme(savedTheme);
+} else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+  setTheme('dark');
+}
+</script>
+
+</body>
+</html>
